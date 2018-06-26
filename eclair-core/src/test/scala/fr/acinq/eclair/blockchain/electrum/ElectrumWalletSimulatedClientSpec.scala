@@ -45,7 +45,7 @@ class ElectrumWalletSimulatedClientSpec extends TestKit(ActorSystem("test")) wit
 
   val listener = TestProbe()
   system.eventStream.subscribe(listener.ref, classOf[WalletEvent])
-  val wallet = TestFSMRef(new ElectrumWallet(seed, system.actorOf(Props(new SimulatedClient())), WalletParameters(Block.RegtestGenesisBlock.hash, minimumFee = Satoshi(5000))))
+  val wallet = TestFSMRef(new ElectrumWallet(seed, system.actorOf(Props(new SimulatedClient())), WalletParameters(Block.RegtestGenesisBlock.hash, new ElectrumWalletSpec.SimpleTxCache, minimumFee = Satoshi(5000))))
 
   // wallet sends a receive address notification as soon as it is created
   listener.expectMsgType[NewWalletReceiveAddress]

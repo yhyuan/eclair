@@ -19,6 +19,7 @@ package fr.acinq.eclair.blockchain.electrum
 import fr.acinq.bitcoin.Crypto.PrivateKey
 import fr.acinq.bitcoin.DeterministicWallet.{ExtendedPrivateKey, derivePrivateKey}
 import fr.acinq.bitcoin._
+import fr.acinq.eclair.blockchain.electrum
 import fr.acinq.eclair.transactions.Transactions
 import org.junit.runner.RunWith
 import org.scalatest.FunSuite
@@ -47,7 +48,7 @@ class ElectrumWalletBasicSpec extends FunSuite {
   val firstAccountKeys = (0 until 10).map(i => derivePrivateKey(accountMaster, i)).toVector
   val firstChangeKeys = (0 until 10).map(i => derivePrivateKey(changeMaster, i)).toVector
 
-  val params = ElectrumWallet.WalletParameters(Block.RegtestGenesisBlock.hash)
+  val params = ElectrumWallet.WalletParameters(Block.RegtestGenesisBlock.hash, new ElectrumWalletSpec.SimpleTxCache)
 
   val state = Data(params, ElectrumClient.Header.RegtestGenesisHeader, firstAccountKeys, firstChangeKeys)
     .copy(status = (firstAccountKeys ++ firstChangeKeys).map(key => computeScriptHashFromPublicKey(key.publicKey) -> "").toMap)

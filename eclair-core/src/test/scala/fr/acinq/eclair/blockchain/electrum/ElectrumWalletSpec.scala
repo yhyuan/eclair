@@ -90,7 +90,7 @@ class ElectrumWalletSpec extends TestKit(ActorSystem("test")) with FunSuiteLike 
 
   test("wait until wallet is ready") {
     electrumClient = system.actorOf(Props(new ElectrumClientPool(Set(new InetSocketAddress("localhost", 50001)))))
-    wallet = system.actorOf(Props(new ElectrumWallet(seed, electrumClient, WalletParameters(Block.RegtestGenesisBlock.hash, minimumFee = Satoshi(5000)))), "wallet")
+    wallet = system.actorOf(Props(new ElectrumWallet(seed, electrumClient, WalletParameters(Block.RegtestGenesisBlock.hash, new ElectrumWalletSpec.SimpleTxCache, minimumFee = Satoshi(5000)))), "wallet")
     val probe = TestProbe()
     awaitCond({
       probe.send(wallet, GetData)
@@ -274,5 +274,19 @@ class ElectrumWalletSpec extends TestKit(ActorSystem("test")) with FunSuiteLike 
       logger.info(s"current balance is $confirmed $unconfirmed")
       confirmed1 < confirmed - Btc(1) && confirmed1 > confirmed - Btc(1) - Satoshi(50000)
     }, max = 30 seconds, interval = 1 second)
+  }
+}
+
+object ElectrumWalletSpec {
+  class SimpleTxCache extends ElectrumWallet.TxCache {
+    val cache = collection.mutable.HashMap.empty[BinaryData, Transaction]
+
+    override def put(tx: Transaction): Unit = cache.put(tx.txid, tx)
+
+    override def get(txid: BinaryData): Option[Transaction] = cache.get(txid)
+
+    override def delete(txid: BinaryData): Int = cache.remove(txid).size
+
+    override def getAll: Seq[Transaction] = cache.values.toSeq
   }
 }

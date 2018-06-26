@@ -206,6 +206,7 @@ class ElectrumWallet(seed: BinaryData, client: ActorRef, params: ElectrumWallet.
 
     case Event(GetTransactionResponse(tx), data) =>
       log.debug(s"received transaction ${tx.txid}")
+      params.txCache.put(tx)
       data.computeTransactionDelta(tx) match {
         case Some((received, sent, fee_opt)) =>
           log.info(s"successfully connected txid=${tx.txid}")
@@ -285,7 +286,17 @@ object ElectrumWallet {
 
   def props(seed: BinaryData, client: ActorRef, params: WalletParameters): Props = Props(new ElectrumWallet(seed, client, params))
 
-  case class WalletParameters(chainHash: BinaryData, minimumFee: Satoshi = Satoshi(2000), dustLimit: Satoshi = Satoshi(546), swipeRange: Int = 10, allowSpendUnconfirmed: Boolean = true)
+  trait TxCache {
+    def put(tx: Transaction): Unit
+
+    def get(txid: BinaryData) : Option[Transaction]
+
+    def delete(txid: BinaryData) : Int
+
+    def getAll: Seq[Transaction]
+  }
+
+  case class WalletParameters(chainHash: BinaryData, txCache: TxCache, minimumFee: Satoshi = Satoshi(2000), dustLimit: Satoshi = Satoshi(546), swipeRange: Int = 10, allowSpendUnconfirmed: Boolean = true)
 
   // @formatter:off
   sealed trait State
@@ -473,7 +484,7 @@ object ElectrumWallet {
     * @param pendingTransactionRequests requests pending a response from the electrum server
     * @param pendingTransactions        transactions received but not yet connected to their parents
     */
-  case class Data(chainHash: BinaryData,
+  case class Data(walletParameters: WalletParameters,
                   tip: ElectrumClient.Header,
                   accountKeys: Vector[ExtendedPrivateKey],
                   changeKeys: Vector[ExtendedPrivateKey],
@@ -523,7 +534,7 @@ object ElectrumWallet {
       accountKeys.head
     }
 
-    def currentReceiveAddress = segwitAddress(currentReceiveKey, chainHash)
+    def currentReceiveAddress = segwitAddress(currentReceiveKey, walletParameters.chainHash)
 
     /**
       *
@@ -538,7 +549,7 @@ object ElectrumWallet {
       changeKeys.head
     }
 
-    def currentChangeAddress = segwitAddress(currentChangeKey, chainHash)
+    def currentChangeAddress = segwitAddress(currentChangeKey, walletParameters.chainHash)
 
     def isMine(txIn: TxIn): Boolean = extractPubKeySpentFrom(txIn).exists(pub => publicScriptMap.contains(Script.write(computePublicKeyScript(pub))))
 
@@ -823,8 +834,10 @@ object ElectrumWallet {
   }
 
   object Data {
-    def apply(params: ElectrumWallet.WalletParameters, tip: ElectrumClient.Header, accountKeys: Vector[ExtendedPrivateKey], changeKeys: Vector[ExtendedPrivateKey]): Data
-    = Data(params.chainHash, tip, accountKeys, changeKeys, Map(), Map(), Map(), Map(), Set(), Set(), Set(), Seq(), None)
+    def apply(params: ElectrumWallet.WalletParameters, tip: ElectrumClient.Header, accountKeys: Vector[ExtendedPrivateKey], changeKeys: Vector[ExtendedPrivateKey]): Data = {
+      val transactions = params.txCache.getAll.map(tx => tx.txid -> tx).toMap
+      Data(params, tip, accountKeys, changeKeys, Map(), transactions, Map(), Map(), Set(), Set(), Set(), Seq(), None)
+    }
   }
 
   case class InfiniteLoopException(data: Data, tx: Transaction) extends Exception
