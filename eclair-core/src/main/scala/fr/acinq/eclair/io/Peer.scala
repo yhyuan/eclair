@@ -470,7 +470,7 @@ object Peer {
   case object CONNECTED extends State
 
   case class Init(previousKnownAddress: Option[InetSocketAddress], storedChannels: Set[HasCommitments])
-  case class Connect(uri: NodeURI, init: Option[wire.Init] = None)
+  case class Connect(uri: NodeURI, init: Option[wire.Init] = None) // On Android we want to be customize the init message by peer (e.g. to only sync with some peers)
   case object Reconnect
   case object Disconnect
   case object ResumeAnnouncements

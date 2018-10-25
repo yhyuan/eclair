@@ -19,8 +19,7 @@ package fr.acinq.eclair
 import akka.actor.ActorSystem
 import fr.acinq.bitcoin.{Block, Transaction}
 import fr.acinq.eclair.blockchain._
-import fr.acinq.eclair.blockchain.bitcoind.rpc.{BitcoinJsonRPCClient, ExtendedBitcoinClient}
-import org.json4s.JsonAST
+import fr.acinq.eclair.blockchain.bitcoind.rpc.{BasicBitcoinJsonRPCClient, ExtendedBitcoinClient}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
@@ -28,9 +27,7 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
   * Created by PM on 26/04/2016.
   */
-class TestBitcoinClient()(implicit system: ActorSystem) extends ExtendedBitcoinClient(new BitcoinJsonRPCClient {
-  override def invoke(method: String, params: Any*)(implicit ec: ExecutionContext): Future[JsonAST.JValue] = ???
-}) {
+class TestBitcoinClient()(implicit system: ActorSystem) extends ExtendedBitcoinClient(new BasicBitcoinJsonRPCClient("", "", "", 0)(http = null)) {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 

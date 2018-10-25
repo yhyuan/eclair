@@ -20,6 +20,7 @@ import java.io.File
 
 import akka.actor.{ActorRef, ActorSystem, Props, SupervisorStrategy}
 import akka.util.Timeout
+import com.softwaremill.sttp.okhttp.OkHttpFutureBackend
 import com.typesafe.config.{Config, ConfigFactory}
 import fr.acinq.bitcoin.{BinaryData, Block}
 import fr.acinq.eclair.NodeParams.ELECTRUM
@@ -64,9 +65,8 @@ class Setup(datadir: File,
   logger.info(s"nodeid=${nodeParams.nodeId} alias=${nodeParams.alias}")
   logger.info(s"using chain=$chain chainHash=${nodeParams.chainHash}")
 
-  implicit val timeout = Timeout(30 seconds)
-  implicit val formats = org.json4s.DefaultFormats
   implicit val ec = ExecutionContext.Implicits.global
+  implicit val sttpBackend = OkHttpFutureBackend()
 
   def bootstrap: Future[Kit] =
     for {
@@ -121,6 +121,7 @@ class Setup(datadir: File,
       wallet = bitcoin match {
         case Electrum(electrumClient) =>
           val electrumWallet = system.actorOf(ElectrumWallet.props(seed, electrumClient, ElectrumWallet.WalletParameters(nodeParams.chainHash)), "electrum-wallet")
+          implicit val timeout = Timeout(30 seconds)
           new ElectrumEclairWallet(electrumWallet, nodeParams.chainHash)
         case _ => ???
       }
