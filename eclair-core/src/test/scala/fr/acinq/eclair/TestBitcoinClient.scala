@@ -19,7 +19,8 @@ package fr.acinq.eclair
 import akka.actor.ActorSystem
 import fr.acinq.bitcoin.{Block, Transaction}
 import fr.acinq.eclair.blockchain._
-import fr.acinq.eclair.blockchain.bitcoind.rpc.{BasicBitcoinJsonRPCClient, ExtendedBitcoinClient}
+import fr.acinq.eclair.blockchain.bitcoind.rpc.{BasicBitcoinJsonRPCClient, BitcoinJsonRPCClient, ExtendedBitcoinClient}
+import org.json4s.JsonAST
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}

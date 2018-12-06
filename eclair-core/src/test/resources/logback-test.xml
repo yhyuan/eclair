@@ -44,7 +44,6 @@
 
     <!--logger name="fr.acinq.eclair.channel" level="DEBUG"/-->
     <logger name="fr.acinq.eclair.router" level="WARN"/>
-    <logger name="fr.acinq.eclair.channel" level="WARN"/>
     <logger name="fr.acinq.eclair.Diagnostics" level="OFF"/>
 
     <root level="INFO">
@@ -54,3 +53,4 @@
     </root>
 
 </configuration>
+

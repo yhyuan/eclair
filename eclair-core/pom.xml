@@ -21,7 +21,7 @@
     <parent>
         <groupId>fr.acinq.eclair</groupId>
         <artifactId>eclair_2.11</artifactId>
-        <version>0.2-SNAPSHOT</version>
+        <version>0.2-android-SNAPSHOT</version>
     </parent>
 
     <artifactId>eclair-core_2.11</artifactId>
@@ -126,12 +126,6 @@
             <artifactId>akka-slf4j_${scala.version.short}</artifactId>
             <version>${akka.version}</version>
         </dependency>
-        <!-- HTTP SERVER -->
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-http-core_${scala.version.short}</artifactId>
-            <version>10.0.11</version>
-        </dependency>
         <!-- HTTP CLIENT -->
         <dependency>
             <groupId>com.softwaremill.sttp</groupId>
@@ -145,14 +139,14 @@
             <version>3.6.0</version>
         </dependency>
         <dependency>
-            <groupId>de.heikoseeberger</groupId>
-            <artifactId>akka-http-json4s_${scala.version.short}</artifactId>
-            <version>1.19.0</version>
-        </dependency>
-        <dependency>
             <groupId>com.softwaremill.sttp</groupId>
             <artifactId>json4s_${scala.version.short}</artifactId>
             <version>${sttp.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.lihaoyi</groupId>
+            <artifactId>upickle_2.11</artifactId>
+            <version>0.6.6</version>
         </dependency>
         <!-- BITCOIN -->
         <dependency>
@@ -192,12 +186,12 @@
         <dependency>
             <groupId>org.jgrapht</groupId>
             <artifactId>jgrapht-core</artifactId>
-            <version>1.0.1</version>
+            <version>0.9.0</version>
         </dependency>
         <dependency>
             <groupId>org.jgrapht</groupId>
             <artifactId>jgrapht-ext</artifactId>
-            <version>1.0.1</version>
+            <version>0.9.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.tinyjee.jgraphx</groupId>

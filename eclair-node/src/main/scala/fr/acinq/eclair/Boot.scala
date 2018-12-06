@@ -18,10 +18,10 @@ package fr.acinq.eclair
 
 import java.io.File
 
-import akka.actor.ActorSystem
 import grizzled.slf4j.Logging
 
 import scala.concurrent.ExecutionContext
+import akka.actor.ActorSystem
 
 /**
   * Created by PM on 25/01/2016.

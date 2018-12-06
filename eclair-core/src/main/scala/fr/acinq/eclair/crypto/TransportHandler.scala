@@ -18,17 +18,16 @@ package fr.acinq.eclair.crypto
 
 import java.nio.ByteOrder
 
-import akka.actor.{Actor, ActorRef, ExtendedActorSystem, FSM, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorRef, FSM, PoisonPill, Props, Terminated}
 import akka.event.Logging.MDC
 import akka.event._
 import akka.io.Tcp
 import akka.util.ByteString
 import fr.acinq.bitcoin.Crypto.PublicKey
 import fr.acinq.bitcoin.{BinaryData, Protocol}
-import fr.acinq.eclair.{Diagnostics, FSMDiagnosticActorLogging, Logs}
 import fr.acinq.eclair.crypto.Noise._
-import fr.acinq.eclair.wire._
-import fr.acinq.eclair.wire.{ChannelAnnouncement, ChannelUpdate, NodeAnnouncement}
+import fr.acinq.eclair.wire.{ChannelAnnouncement, ChannelUpdate, NodeAnnouncement, _}
+import fr.acinq.eclair.{Diagnostics, FSMDiagnosticActorLogging, Logs}
 import scodec.bits.BitVector
 import scodec.{Attempt, Codec, DecodeResult}
 
@@ -55,7 +54,8 @@ class TransportHandler[T: ClassTag](keyPair: KeyPair, rs: Option[BinaryData], co
   // will hold the peer's public key once it is available (we don't know it right away in case of an incoming connection)
   var remoteNodeId_opt: Option[PublicKey] = rs.map(PublicKey(_))
 
-  val wireLog = new BusLogging(context.system.eventStream, "", classOf[Diagnostics], context.system.asInstanceOf[ExtendedActorSystem].logFilter) with DiagnosticLoggingAdapter
+  // no logging filter on akka 2.3.X...
+  val wireLog = new BusLogging(context.system.eventStream, "", classOf[Diagnostics]) with DiagnosticLoggingAdapter
 
   def diag(message: T, direction: String) = {
     require(direction == "IN" || direction == "OUT")

@@ -18,10 +18,10 @@ package fr.acinq.eclair
 
 import java.io.File
 import java.net.InetSocketAddress
-import java.nio.file.Files
 import java.sql.DriverManager
 import java.util.concurrent.TimeUnit
 
+import com.google.common.io.Files
 import com.google.common.net.InetAddresses
 import com.typesafe.config.{Config, ConfigFactory}
 import fr.acinq.bitcoin.{BinaryData, Block}
@@ -104,11 +104,10 @@ object NodeParams {
   def getSeed(datadir: File): BinaryData = {
     val seedPath = new File(datadir, "seed.dat")
     seedPath.exists() match {
-      case true => Files.readAllBytes(seedPath.toPath)
+      case true => Files.toByteArray(seedPath)
       case false =>
-        datadir.mkdirs()
         val seed = randomKey.toBin
-        Files.write(seedPath.toPath, seed)
+        Files.write(seed, seedPath)
         seed
     }
   }
@@ -186,16 +185,16 @@ object NodeParams {
       pendingRelayDb = pendingRelayDb,
       paymentsDb = paymentsDb,
       auditDb = auditDb,
-      routerBroadcastInterval = FiniteDuration(config.getDuration("router-broadcast-interval").getSeconds, TimeUnit.SECONDS),
-      pingInterval = FiniteDuration(config.getDuration("ping-interval").getSeconds, TimeUnit.SECONDS),
+      routerBroadcastInterval = FiniteDuration(config.getDuration("router-broadcast-interval", TimeUnit.SECONDS), TimeUnit.SECONDS),
+      pingInterval = FiniteDuration(config.getDuration("ping-interval", TimeUnit.SECONDS), TimeUnit.SECONDS),
       maxFeerateMismatch = config.getDouble("max-feerate-mismatch"),
       updateFeeMinDiffRatio = config.getDouble("update-fee_min-diff-ratio"),
       autoReconnect = config.getBoolean("auto-reconnect"),
       chainHash = chainHash,
       channelFlags = config.getInt("channel-flags").toByte,
-      channelExcludeDuration = FiniteDuration(config.getDuration("channel-exclude-duration").getSeconds, TimeUnit.SECONDS),
+      channelExcludeDuration = FiniteDuration(config.getDuration("channel-exclude-duration", TimeUnit.SECONDS), TimeUnit.SECONDS),
       watcherType = watcherType,
-      paymentRequestExpiry = FiniteDuration(config.getDuration("payment-request-expiry").getSeconds, TimeUnit.SECONDS),
+      paymentRequestExpiry = FiniteDuration(config.getDuration("payment-request-expiry", TimeUnit.SECONDS), TimeUnit.SECONDS),
       maxPendingPaymentRequests = config.getInt("max-pending-payment-requests"),
       maxPaymentFee = config.getDouble("max-payment-fee"),
       minFundingSatoshis = config.getLong("min-funding-satoshis")

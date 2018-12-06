@@ -20,7 +20,7 @@ import java.io.ByteArrayInputStream
 import java.net.InetSocketAddress
 import java.nio.ByteOrder
 
-import akka.actor.{ActorRef, Cancellable, OneForOneStrategy, PoisonPill, Props, Status, SupervisorStrategy, Terminated}
+import akka.actor.{ActorRef, OneForOneStrategy, PoisonPill, Props, Status, SupervisorStrategy, Terminated}
 import akka.event.Logging.MDC
 import fr.acinq.bitcoin.Crypto.PublicKey
 import fr.acinq.bitcoin.{BinaryData, DeterministicWallet, MilliSatoshi, Protocol, Satoshi}
@@ -52,23 +52,24 @@ class Peer(nodeParams: NodeParams, remoteNodeId: PublicKey, authenticator: Actor
         channel ! INPUT_RESTORED(state)
         FinalChannelId(state.channelId) -> channel
       }.toMap
+      setTimer(RECONNECT_TIMER, Reconnect, 1 second, repeat = false)
       goto(DISCONNECTED) using DisconnectedData(previousKnownAddress, channels)
   }
 
   when(DISCONNECTED) {
-    case Event(Peer.Connect(NodeURI(_, address)), _) =>
+    case Event(Peer.Connect(NodeURI(_, address), init), d: DisconnectedData) =>
       // even if we are in a reconnection loop, we immediately process explicit connection requests
       context.actorOf(Client.props(nodeParams, authenticator, new InetSocketAddress(address.getHost, address.getPort), remoteNodeId, origin_opt = Some(sender())))
-      stay
+      stay using d.copy(localInit = init)
 
-    case Event(Reconnect, d@DisconnectedData(address_opt, channels, attempts)) =>
+    case Event(Reconnect, d@DisconnectedData(address_opt, channels, attempts, _)) =>
       address_opt match {
         case None => stay // no-op (this peer didn't initiate the connection and doesn't have the ip of the counterparty)
         case _ if channels.isEmpty => stay // no-op (no more channels with this peer)
         case Some(address) =>
           context.actorOf(Client.props(nodeParams, authenticator, address, remoteNodeId, origin_opt = None))
           // exponential backoff retry with a finite max
-          setTimer(RECONNECT_TIMER, Reconnect, Math.min(10 + Math.pow(2, attempts), 60) seconds, repeat = false)
+          setTimer(RECONNECT_TIMER, Reconnect, Math.min(10 + Math.pow(2, attempts), 20) seconds, repeat = false)
           stay using d.copy(attempts = attempts + 1)
       }
 
@@ -77,18 +78,19 @@ class Peer(nodeParams: NodeParams, remoteNodeId: PublicKey, authenticator: Actor
       log.debug(s"got authenticated connection to $remoteNodeId@${address.getHostString}:${address.getPort}")
       transport ! TransportHandler.Listener(self)
       context watch transport
-      transport ! wire.Init(globalFeatures = nodeParams.globalFeatures, localFeatures = nodeParams.localFeatures)
+      val localInit = d.localInit.getOrElse(wire.Init(globalFeatures = nodeParams.globalFeatures, localFeatures = nodeParams.localFeatures))
+      transport ! localInit
 
       // we store the ip upon successful outgoing connection, keeping only the most recent one
       if (outgoing) {
         nodeParams.peersDb.addOrUpdatePeer(remoteNodeId, address)
       }
-      goto(INITIALIZING) using InitializingData(if (outgoing) Some(address) else None, transport, d.channels, origin_opt)
+      goto(INITIALIZING) using InitializingData(if (outgoing) Some(address) else None, transport, d.channels, origin_opt, localInit)
 
-    case Event(Terminated(actor), d@DisconnectedData(_, channels, _)) if channels.exists(_._2 == actor) =>
-      val h = channels.filter(_._2 == actor).keys
+    case Event(Terminated(actor), d: DisconnectedData) if d.channels.exists(_._2 == actor) =>
+      val h = d.channels.filter(_._2 == actor).keys
       log.info(s"channel closed: channelId=${h.mkString("/")}")
-      stay using d.copy(channels = channels -- h)
+      stay using d.copy(channels = d.channels -- h)
 
     case Event(_: wire.LightningMessage, _) => stay // we probably just got disconnected and that's the last messages we received
   }
@@ -99,12 +101,21 @@ class Peer(nodeParams: NodeParams, remoteNodeId: PublicKey, authenticator: Actor
       val remoteHasInitialRoutingSync = Features.hasFeature(remoteInit.localFeatures, Features.INITIAL_ROUTING_SYNC_BIT_OPTIONAL)
       val remoteHasChannelRangeQueriesOptional = Features.hasFeature(remoteInit.localFeatures, Features.CHANNEL_RANGE_QUERIES_BIT_OPTIONAL)
       val remoteHasChannelRangeQueriesMandatory = Features.hasFeature(remoteInit.localFeatures, Features.CHANNEL_RANGE_QUERIES_BIT_MANDATORY)
+      val remoteHasChannelRangeQueriesExOptional = Features.hasFeature(remoteInit.localFeatures, Features.CHANNEL_RANGE_QUERIES_EX_BIT_OPTIONAL)
+      val remoteHasChannelRangeQueriesExMandatory = Features.hasFeature(remoteInit.localFeatures, Features.CHANNEL_RANGE_QUERIES_EX_BIT_MANDATORY)
+      val localHasChannelRangeQueriesOptional = Features.hasFeature(d.localInit.localFeatures, Features.CHANNEL_RANGE_QUERIES_BIT_OPTIONAL)
+      val localHasChannelRangeQueriesMandatory = Features.hasFeature(d.localInit.localFeatures, Features.CHANNEL_RANGE_QUERIES_BIT_MANDATORY)
+      val localHasChannelRangeQueriesExOptional = Features.hasFeature(d.localInit.localFeatures, Features.CHANNEL_RANGE_QUERIES_EX_BIT_OPTIONAL)
+      val localHasChannelRangeQueriesExMandatory = Features.hasFeature(d.localInit.localFeatures, Features.CHANNEL_RANGE_QUERIES_EX_BIT_MANDATORY)
       log.info(s"$remoteNodeId has features: initialRoutingSync=$remoteHasInitialRoutingSync channelRangeQueriesOptional=$remoteHasChannelRangeQueriesOptional channelRangeQueriesMandatory=$remoteHasChannelRangeQueriesMandatory")
       if (Features.areSupported(remoteInit.localFeatures)) {
         d.origin_opt.foreach(origin => origin ! "connected")
 
         if (remoteHasInitialRoutingSync) {
-          if (remoteHasChannelRangeQueriesOptional || remoteHasChannelRangeQueriesMandatory) {
+          if (remoteHasChannelRangeQueriesExOptional || remoteHasChannelRangeQueriesExMandatory) {
+            // if they support extended channel queries we do nothing, they will send us their filters
+            log.info("{} has set initial routing sync and support extended channel range queries, we do nothing (they will send us a query)", remoteNodeId)
+          } else if (remoteHasChannelRangeQueriesOptional || remoteHasChannelRangeQueriesMandatory) {
             // if they support channel queries we do nothing, they will send us their filters
             log.info("{} has set initial routing sync and support channel range queries, we do nothing (they will send us a query)", remoteNodeId)
           } else {
@@ -112,14 +123,18 @@ class Peer(nodeParams: NodeParams, remoteNodeId: PublicKey, authenticator: Actor
             router ! GetRoutingState
           }
         }
-        if (remoteHasChannelRangeQueriesOptional || remoteHasChannelRangeQueriesMandatory) {
+        // TODO: this is a hack for the Android version: don't send queries if we advertise that we don't support them
+        if ((localHasChannelRangeQueriesExOptional || localHasChannelRangeQueriesExMandatory) && (remoteHasChannelRangeQueriesExOptional || remoteHasChannelRangeQueriesExMandatory)) {
+          // if they support extended channel queries, always ask for their filter
+          router ! SendChannelQueryEx(remoteNodeId, d.transport)
+        } else if ((localHasChannelRangeQueriesOptional || localHasChannelRangeQueriesMandatory) && (remoteHasChannelRangeQueriesOptional || remoteHasChannelRangeQueriesMandatory)) {
           // if they support channel queries, always ask for their filter
           router ! SendChannelQuery(remoteNodeId, d.transport)
         }
 
         // let's bring existing/requested channels online
         d.channels.values.toSet[ActorRef].foreach(_ ! INPUT_RECONNECTED(d.transport)) // we deduplicate with toSet because there might be two entries per channel (tmp id and final id)
-        goto(CONNECTED) using ConnectedData(d.address_opt, d.transport, remoteInit, d.channels.map { case (k: ChannelId, v) => (k, v) })
+        goto(CONNECTED) using ConnectedData(d.address_opt, d.transport, d.localInit, remoteInit, d.channels.map { case (k: ChannelId, v) => (k, v) })
       } else {
         log.warning(s"incompatible features, disconnecting")
         d.origin_opt.foreach(origin => origin ! Status.Failure(new RuntimeException("incompatible features")))
@@ -403,10 +418,6 @@ class Peer(nodeParams: NodeParams, remoteNodeId: PublicKey, authenticator: Actor
       sender ! PeerInfo(remoteNodeId, stateName.toString, d.address_opt, d.channels.values.toSet.size) // we use toSet to dedup because a channel can have a TemporaryChannelId + a ChannelId
       stay
 
-    case Event(_: Rebroadcast, _) => stay // ignored
-
-    case Event(_: RoutingState, _) => stay // ignored
-
     case Event(_: TransportHandler.ReadAck, _) => stay // ignored
 
     case Event(SendPing, _) => stay // we got disconnected in the meantime
@@ -475,9 +486,9 @@ object Peer {
     def channels: Map[_ <: ChannelId, ActorRef] // will be overridden by Map[FinalChannelId, ActorRef] or Map[ChannelId, ActorRef]
   }
   case class Nothing() extends Data { override def address_opt = None; override def channels = Map.empty }
-  case class DisconnectedData(address_opt: Option[InetSocketAddress], channels: Map[FinalChannelId, ActorRef], attempts: Int = 0) extends Data
-  case class InitializingData(address_opt: Option[InetSocketAddress], transport: ActorRef, channels: Map[FinalChannelId, ActorRef], origin_opt: Option[ActorRef]) extends Data
-  case class ConnectedData(address_opt: Option[InetSocketAddress], transport: ActorRef, remoteInit: wire.Init, channels: Map[ChannelId, ActorRef], gossipTimestampFilter: Option[GossipTimestampFilter] = None, behavior: Behavior = Behavior(), expectedPong_opt: Option[ExpectedPong] = None) extends Data
+  case class DisconnectedData(address_opt: Option[InetSocketAddress], channels: Map[FinalChannelId, ActorRef], attempts: Int = 0, localInit: Option[wire.Init] = None) extends Data
+  case class InitializingData(address_opt: Option[InetSocketAddress], transport: ActorRef, channels: Map[FinalChannelId, ActorRef], origin_opt: Option[ActorRef], localInit: wire.Init) extends Data
+  case class ConnectedData(address_opt: Option[InetSocketAddress], transport: ActorRef, localInit: wire.Init, remoteInit: wire.Init, channels: Map[ChannelId, ActorRef], gossipTimestampFilter: Option[GossipTimestampFilter] = None, behavior: Behavior = Behavior(), expectedPong_opt: Option[ExpectedPong] = None) extends Data
   case class ExpectedPong(ping: Ping, timestamp: Long = Platform.currentTime)
   case class PingTimeout(ping: Ping)
 
@@ -488,7 +499,7 @@ object Peer {
   case object CONNECTED extends State
 
   case class Init(previousKnownAddress: Option[InetSocketAddress], storedChannels: Set[HasCommitments])
-  case class Connect(uri: NodeURI)
+  case class Connect(uri: NodeURI, init: Option[wire.Init] = None)
   case object Reconnect
   case object Disconnect
   case object ResumeAnnouncements

@@ -21,8 +21,9 @@ import akka.actor.Status
 import akka.testkit.{TestFSMRef, TestProbe}
 import fr.acinq.bitcoin.{BinaryData, Block, MilliSatoshi}
 import fr.acinq.eclair.Globals
+import fr.acinq.eclair.blockchain.WatchEventSpentBasic
 import fr.acinq.eclair.channel.Register.ForwardShortId
-import fr.acinq.eclair.channel.{AddHtlcFailed, ChannelUnavailable}
+import fr.acinq.eclair.channel.{AddHtlcFailed, BITCOIN_FUNDING_EXTERNAL_CHANNEL_SPENT, ChannelUnavailable}
 import fr.acinq.eclair.crypto.Sphinx
 import fr.acinq.eclair.crypto.Sphinx.ErrorPacket
 import fr.acinq.eclair.payment.PaymentLifecycle._
@@ -287,7 +288,8 @@ class PaymentLifecycleSpec extends BaseRouterSpec {
     relayer.expectMsg(ForwardShortId(channelId_ab, cmd1))
     sender.send(paymentFSM, UpdateFailHtlc("00" * 32, 0, Sphinx.createErrorPacket(sharedSecrets1.head._1, failure)))
 
-    // payment lifecycle forwards the embedded channelUpdate to the router
+    // On Android, failed channel will automatically get pruned
+    routerForwarder.expectMsg(WatchEventSpentBasic(BITCOIN_FUNDING_EXTERNAL_CHANNEL_SPENT(channelId_bc)))
     awaitCond(paymentFSM.stateName == WAITING_FOR_ROUTE)
     routerForwarder.expectMsg(RouteRequest(a, d, defaultAmountMsat, assistedRoutes = Nil, ignoreNodes = Set.empty, ignoreChannels = Set(ChannelDesc(channelId_bc, b, c))))
     routerForwarder.forward(router)
