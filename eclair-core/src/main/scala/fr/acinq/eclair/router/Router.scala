@@ -53,6 +53,7 @@ case class RouteResponse(hops: Seq[Hop], ignoreNodes: Set[PublicKey], ignoreChan
 case class ExcludeChannel(desc: ChannelDesc) // this is used when we get a TemporaryChannelFailure, to give time for the channel to recover (note that exclusions are directed)
 case class LiftChannelExclusion(desc: ChannelDesc)
 case class SendChannelQuery(remoteNodeId: PublicKey, to: ActorRef)
+case class SendChannelQueryEx(remoteNodeId: PublicKey, to: ActorRef)
 case object GetRoutingState
 case class RoutingState(channels: Iterable[ChannelAnnouncement], updates: Iterable[ChannelUpdate], nodes: Iterable[NodeAnnouncement])
 case class Stash(updates: Map[ChannelUpdate, Set[ActorRef]], nodes: Map[NodeAnnouncement, Set[ActorRef]])
@@ -374,7 +375,7 @@ class Router(nodeParams: NodeParams, watcher: ActorRef, initialized: Option[Prom
       stay
 
     case Event('dot, d) =>
-      graph2dot(d.nodes, d.channels) pipeTo sender
+      //graph2dot(d.nodes, d.channels) pipeTo sender
       stay
 
     case Event(RouteRequest(start, end, amount, assistedRoutes, ignoreNodes, ignoreChannels), d) =>
@@ -809,47 +810,15 @@ object Router {
 
     //remove from the the working graph out-of-range(of capacity) channels
     val prunedGraph = workingGraph.filterBy { edge =>
-      (edge.update.htlcMaximumMsat.isDefined && amountMsat > edge.update.htlcMaximumMsat.get) ||    //exclude channels with too little capacity for this payment
-      (amountMsat < edge.update.htlcMinimumMsat)                                                    //exclude channels requiring the payment to be bigger than this payment
-      }
+      (edge.update.htlcMaximumMsat.isDefined && amountMsat > edge.update.htlcMaximumMsat.get) || //exclude channels with too little capacity for this payment
+        (amountMsat < edge.update.htlcMinimumMsat) //exclude channels requiring the payment to be bigger than this payment
+    }
 
     Graph.shortestPathWithCostInfo(prunedGraph, localNodeId, targetNodeId, amountMsat) match {
       case (Nil, _) => throw RouteNotFound
       case path => path
     }
-
   }
 
-  def graph2dot(nodes: Map[PublicKey, NodeAnnouncement], channels: Map[ShortChannelId, ChannelAnnouncement])(implicit ec: ExecutionContext): Future[String] = Future {
-    case class DescEdge(shortChannelId: ShortChannelId) extends DefaultEdge
-    val g = new SimpleGraph[PublicKey, DescEdge](classOf[DescEdge])
-    channels.foreach(d => {
-      g.addVertex(d._2.nodeId1)
-      g.addVertex(d._2.nodeId2)
-      g.addEdge(d._2.nodeId1, d._2.nodeId2, new DescEdge(d._1))
-    })
-    val vertexIDProvider = new ComponentNameProvider[PublicKey]() {
-      override def getName(nodeId: PublicKey): String = "\"" + nodeId.toString() + "\""
-    }
-    val edgeLabelProvider = new ComponentNameProvider[DescEdge]() {
-      override def getName(e: DescEdge): String = e.shortChannelId.toString
-    }
-    val vertexAttributeProvider = new ComponentAttributeProvider[PublicKey]() {
 
-      override def getComponentAttributes(nodeId: PublicKey): java.util.Map[String, String] =
-
-        nodes.get(nodeId) match {
-          case Some(ann) => Map("label" -> ann.alias, "color" -> ann.rgbColor.toString)
-          case None => Map.empty[String, String]
-        }
-    }
-    val exporter = new DOTExporter[PublicKey, DescEdge](vertexIDProvider, null, edgeLabelProvider, vertexAttributeProvider, null)
-    val writer = new StringWriter()
-    try {
-      exporter.exportGraph(g, writer)
-      writer.toString
-    } finally {
-      writer.close()
-    }
-  }
 }
