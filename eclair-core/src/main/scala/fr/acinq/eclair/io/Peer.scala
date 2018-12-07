@@ -358,7 +358,7 @@ class Peer(nodeParams: NodeParams, remoteNodeId: PublicKey, authenticator: Actor
             setTimer(ResumeAnnouncements.toString, ResumeAnnouncements, IGNORE_NETWORK_ANNOUNCEMENTS_PERIOD, repeat = false)
             d.behavior.copy(fundingTxAlreadySpentCount = d.behavior.fundingTxAlreadySpentCount + 1, ignoreNetworkAnnouncement = true)
           }
-        case NonexistingChannel(_) =>
+        case NonExistingChannel(_) =>
           // this should never happen, unless we are not in sync or there is a 6+ blocks reorg
           if (d.behavior.ignoreNetworkAnnouncement) {
             // we already are ignoring announcements, we may have additional notifications for announcements that were received right before our ban
@@ -519,7 +519,7 @@ object Peer {
   sealed trait BadMessage
   case class InvalidSignature(r: RoutingMessage) extends BadMessage
   case class ChannelClosed(c: ChannelAnnouncement) extends BadMessage
-  case class NonexistingChannel(c: ChannelAnnouncement) extends BadMessage
+  case class NonExistingChannel(c: ChannelAnnouncement) extends BadMessage
 
   case class Behavior(fundingTxAlreadySpentCount: Int = 0, fundingTxNotFoundCount: Int = 0, ignoreNetworkAnnouncement: Boolean = false)
 
