@@ -32,6 +32,7 @@ import fr.acinq.eclair.crypto.LocalKeyManager
 import fr.acinq.eclair.io.{Authenticator, Switchboard}
 import fr.acinq.eclair.payment._
 import fr.acinq.eclair.router._
+import fr.acinq.electrum.{ElectrumClientPool, ElectrumWallet}
 import grizzled.slf4j.Logging
 
 import scala.concurrent.duration._

@@ -22,10 +22,11 @@ import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props, Stash, Ter
 import fr.acinq.bitcoin.Crypto.PublicKey
 import fr.acinq.bitcoin.{BinaryData, Satoshi, Script, Transaction, TxIn, TxOut}
 import fr.acinq.eclair.blockchain._
-import fr.acinq.eclair.blockchain.electrum.ElectrumClient._
+import fr.acinq.electrum.ElectrumClient._
 import fr.acinq.eclair.channel.{BITCOIN_FUNDING_DEPTHOK, BITCOIN_FUNDING_SPENT, BITCOIN_PARENT_TX_CONFIRMED}
 import fr.acinq.eclair.transactions.Scripts
 import fr.acinq.eclair.{Globals, ShortChannelId, TxCoordinates}
+import fr.acinq.electrum.ElectrumClient
 
 import scala.collection.SortedMap
 
