@@ -81,7 +81,6 @@ class Setup(datadir: File,
 
       bitcoin = nodeParams.watcherType match {
         case ELECTRUM =>
-          logger.warn("EXPERIMENTAL ELECTRUM MODE ENABLED!!!")
           val addresses = config.hasPath("eclair.electrum") match {
             case true =>
               val host = config.getString("eclair.electrum.host")
