@@ -28,7 +28,7 @@ import javafx.stage.{Popup, Screen, Stage, WindowEvent}
 import akka.actor.{ActorSystem, Props, SupervisorStrategy}
 import fr.acinq.eclair._
 import fr.acinq.eclair.blockchain.bitcoind.zmq.ZMQActor._
-import fr.acinq.eclair.blockchain.electrum.ElectrumClient.ElectrumEvent
+import fr.acinq.electrum.ElectrumClient.ElectrumEvent
 import fr.acinq.eclair.channel.ChannelEvent
 import fr.acinq.eclair.gui.controllers.{MainController, NotificationsController}
 import fr.acinq.eclair.payment.PaymentEvent

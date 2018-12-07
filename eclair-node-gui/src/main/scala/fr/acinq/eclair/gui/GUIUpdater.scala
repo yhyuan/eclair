@@ -18,25 +18,25 @@ package fr.acinq.eclair.gui
 
 import java.time.LocalDateTime
 import java.util.function.Predicate
+
 import javafx.application.Platform
 import javafx.event.{ActionEvent, EventHandler}
 import javafx.fxml.FXMLLoader
 import javafx.scene.control.Alert.AlertType
 import javafx.scene.control.{Alert, ButtonType}
 import javafx.scene.layout.VBox
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Terminated}
 import fr.acinq.bitcoin.Crypto.PublicKey
 import fr.acinq.bitcoin._
 import fr.acinq.eclair.CoinUtils
 import fr.acinq.eclair.blockchain.bitcoind.zmq.ZMQActor.{ZMQConnected, ZMQDisconnected}
-import fr.acinq.eclair.blockchain.electrum.ElectrumClient.{ElectrumDisconnected, ElectrumReady}
 import fr.acinq.eclair.channel._
 import fr.acinq.eclair.gui.controllers._
 import fr.acinq.eclair.payment.PaymentLifecycle.{LocalFailure, PaymentFailed, PaymentSucceeded, RemoteFailure}
 import fr.acinq.eclair.payment._
 import fr.acinq.eclair.router.{NORMAL => _, _}
 import fr.acinq.eclair.wire.NodeAnnouncement
+import fr.acinq.electrum.ElectrumClient.{ElectrumDisconnected, ElectrumReady}
 
 import scala.collection.JavaConversions._
 

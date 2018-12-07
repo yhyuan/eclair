@@ -20,9 +20,10 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import fr.acinq.bitcoin.{BinaryData, Satoshi, Script, Transaction, TxOut}
 import fr.acinq.eclair.addressToPublicKeyScript
-import fr.acinq.eclair.blockchain.electrum.ElectrumClient.BroadcastTransaction
-import fr.acinq.eclair.blockchain.electrum.ElectrumWallet._
+import fr.acinq.electrum.ElectrumClient.BroadcastTransaction
+import fr.acinq.electrum.ElectrumWallet._
 import fr.acinq.eclair.blockchain.{EclairWallet, MakeFundingTxResponse}
+import fr.acinq.electrum.ElectrumClient
 import grizzled.slf4j.Logging
 
 import scala.concurrent.{ExecutionContext, Future}

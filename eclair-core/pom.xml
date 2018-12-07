@@ -166,6 +166,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <!-- ELECTRUM -->
+        <dependency>
+            <groupId>fr.acinq</groupId>
+            <artifactId>electrum-lib_${scala.version.short}</artifactId>
+            <version>${electrumlib.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.zeromq</groupId>
             <artifactId>jeromq</artifactId>
